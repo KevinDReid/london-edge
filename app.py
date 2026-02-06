@@ -364,64 +364,72 @@ with tab3:
             st.success(f"✅ EV POSITIVO - Edge de ${ev:.4f} por $1")
 
         if st.button("🚀 Simular", type="primary"):
-            with st.spinner(f"Corriendo {n_sims:,} simulaciones..."):
-                final_bankrolls = []
-                paths = []
+            try:
+                with st.spinner(f"Corriendo {n_sims:,} simulaciones..."):
+                    final_bankrolls = []
+                    paths = []
 
-                bet_size = bet_pct / 100
+                    bet_size = bet_pct / 100
 
-                for sim in range(n_sims):
-                    bankroll = initial
-                    path = [bankroll]
+                    # Asegurar que loss_stop no sea negativo
+                    loss_stop_safe = max(0, loss_stop)
+                    loss_full_safe = max(0, loss_full)
 
-                    for _ in range(n_trades):
-                        bet = bankroll * bet_size
-                        rand = np.random.random()
+                    for sim in range(n_sims):
+                        bankroll = float(initial)
+                        path = [bankroll]
 
-                        if rand < p_win:
-                            bankroll += bet * profit_win
-                        elif rand < p_win + p_stopped:
-                            bankroll -= bet * loss_stop
-                        else:
-                            bankroll -= bet * loss_full
+                        for _ in range(n_trades):
+                            bet = bankroll * bet_size
+                            rand = np.random.random()
 
-                        path.append(max(0, bankroll))
-                        if bankroll <= 0:
-                            break
+                            if rand < p_win:
+                                bankroll += bet * profit_win
+                            elif rand < p_win + p_stopped and p_stopped > 0:
+                                bankroll -= bet * loss_stop_safe
+                            else:
+                                bankroll -= bet * loss_full_safe
 
-                    final_bankrolls.append(bankroll)
-                    if sim < 50:
-                        paths.append(path)
+                            path.append(max(0, bankroll))
+                            if bankroll <= 0:
+                                break
 
-                final_bankrolls = np.array(final_bankrolls)
+                        final_bankrolls.append(max(0, bankroll))
+                        if sim < 50:
+                            paths.append(path)
 
-            st.subheader("Resultados")
+                    final_bankrolls = np.array(final_bankrolls, dtype=np.float64)
 
-            col1, col2, col3, col4 = st.columns(4)
-            col1.metric("Mediana", f"${np.median(final_bankrolls):,.0f}")
-            col2.metric("Media", f"${np.mean(final_bankrolls):,.0f}")
-            col3.metric("Min", f"${np.min(final_bankrolls):,.0f}")
-            col4.metric("Max", f"${np.max(final_bankrolls):,.0f}")
+                st.subheader("Resultados")
 
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Prob Profit", f"{np.mean(final_bankrolls > initial)*100:.1f}%")
-            col2.metric("Prob 2x", f"{np.mean(final_bankrolls >= initial*2)*100:.1f}%")
-            col3.metric("Prob Ruina", f"{np.mean(final_bankrolls < initial*0.1)*100:.2f}%")
+                col1, col2, col3, col4 = st.columns(4)
+                col1.metric("Mediana", f"${float(np.median(final_bankrolls)):,.0f}")
+                col2.metric("Media", f"${float(np.mean(final_bankrolls)):,.0f}")
+                col3.metric("Min", f"${float(np.min(final_bankrolls)):,.0f}")
+                col4.metric("Max", f"${float(np.max(final_bankrolls)):,.0f}")
 
-            col1, col2 = st.columns(2)
+                col1, col2, col3 = st.columns(3)
+                col1.metric("Prob Profit", f"{float(np.mean(final_bankrolls > initial))*100:.1f}%")
+                col2.metric("Prob 2x", f"{float(np.mean(final_bankrolls >= initial*2))*100:.1f}%")
+                col3.metric("Prob Ruina", f"{float(np.mean(final_bankrolls < initial*0.1))*100:.2f}%")
 
-            with col1:
-                fig = px.histogram(x=final_bankrolls, nbins=50, title="Distribucion Final")
-                fig.add_vline(x=initial, line_dash="dash", line_color="red")
-                st.plotly_chart(fig, use_container_width=True)
+                col1, col2 = st.columns(2)
 
-            with col2:
-                fig2 = go.Figure()
-                for path in paths:
-                    fig2.add_trace(go.Scatter(y=path, mode='lines', opacity=0.3, showlegend=False))
-                fig2.add_hline(y=initial, line_dash="dash", line_color="red")
-                fig2.update_layout(title="50 Simulaciones", xaxis_title="Trade", yaxis_title="Bankroll")
-                st.plotly_chart(fig2, use_container_width=True)
+                with col1:
+                    fig = px.histogram(x=final_bankrolls, nbins=50, title="Distribucion Final")
+                    fig.add_vline(x=initial, line_dash="dash", line_color="red")
+                    st.plotly_chart(fig, use_container_width=True)
+
+                with col2:
+                    fig2 = go.Figure()
+                    for path in paths:
+                        fig2.add_trace(go.Scatter(y=path, mode='lines', opacity=0.3, showlegend=False))
+                    fig2.add_hline(y=initial, line_dash="dash", line_color="red")
+                    fig2.update_layout(title="50 Simulaciones", xaxis_title="Trade", yaxis_title="Bankroll")
+                    st.plotly_chart(fig2, use_container_width=True)
+
+            except Exception as e:
+                st.error(f"Error en simulacion: {str(e)}")
     else:
         st.warning("No hay datos para este umbral")
 
