@@ -278,10 +278,14 @@ with tab3:
         use_stop = st.checkbox("Stop Loss", value=True)
 
     with col3:
-        stop_level = st.selectbox("Nivel Stop", [40, 50, 60, 70], index=1, format_func=lambda x: f"{x}%") if use_stop else 0
+        stop_level = st.selectbox("Nivel Stop", [0, 40, 50, 60, 70], index=2 if use_stop else 0, format_func=lambda x: f"{x}%" if x > 0 else "Sin stop")
 
     with col4:
         bet_pct = st.slider("Apuesta %", 5, 50, 20, 5)
+
+    # Ajustar stop_level si no se usa stop loss
+    if not use_stop:
+        stop_level = 0
 
     col5, col6, col7 = st.columns(3)
 
